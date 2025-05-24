@@ -3,7 +3,7 @@ name = "ifc-anywidget"
 description = "IFC viewer AnyWidget using That Open Company Open BIM Components"
 authors = [{ name = "sanzoghenzo" }]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dynamic = ["version"]
 license = { file = "LICENSE" }
 dependencies = ["anywidget>=0.9.18", "ifcopenshell>=0.8.2"]
