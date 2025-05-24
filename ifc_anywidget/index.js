@@ -48,6 +48,8 @@ export default {
 
     model.on("change:ifc_model", async () => {
       await loadModel(model.get("ifc_model").contents);
+      model.set("selected_guids", null);
+      model.save_changes();
     });
 
     // use entityAttributes for more complete table
@@ -65,14 +67,15 @@ export default {
 
     highlighter.events.select.onHighlight.add((fragmentIdMap) => {
       updatePropertiesTable({ fragmentIdMap });
-      const guid = fragments.fragmentIdMapToGuids(fragmentIdMap)[0];
-      console.log("selected guid", guid);
-      model.set("selected_guid", guid);
+      const guids = fragments.fragmentIdMapToGuids(fragmentIdMap);
+      model.set("selected_guids", guids);
+      model.save_changes();
     });
 
     highlighter.events.select.onClear.add(() => {
       updatePropertiesTable({ fragmentIdMap: {} });
-      model.set("selected_guid", "");
+      model.set("selected_guids", null);
+      model.save_changes();
     });
 
     const propertiesPanel = BUI.Component.create(() => {

@@ -18,4 +18,4 @@ class IfcViewer(anywidget.AnyWidget):
     _esm = Path(__file__).with_name("index.js")
     _css = Path(__file__).with_name("index.css")
     ifc_model = traitlets.Instance(ifcopenshell.file).tag(sync=True, to_json=ifc_to_json)
-    selected_guid = traitlets.Unicode().tag(sync=True)
+    selected_guids = traitlets.List(trait=traitlets.Unicode(), allow_none=True).tag(sync=True)
