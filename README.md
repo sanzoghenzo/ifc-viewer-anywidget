@@ -7,6 +7,8 @@ Uses [anywidget](https://anywidget.dev/) and [Open BIM components from That Open
 >[!WARNING]
 > this library is still in early development and only covers a fraction of the capabilities of Open BIM Components
 
+![marimo example](marimo.png)
+
 ## install
 
 If you're running JupyterLab, add the library to your environment:
