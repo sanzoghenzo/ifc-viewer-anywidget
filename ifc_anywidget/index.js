@@ -15,6 +15,7 @@ export default {
     const world = worlds.create();
     world.scene = new OBC.SimpleScene(components);
     world.scene.setup();
+    world.scene.three.background = null;
     world.renderer = new OBC.SimpleRenderer(components, viewport);
     world.camera = new OBC.SimpleCamera(components);
     world.camera.controls.setLookAt(10, 5.5, 5, -4, -1, -6.5);
@@ -28,14 +29,15 @@ export default {
     const grids = components.get(OBC.Grids);
     grids.create(world);
 
-    const fragments = components.get(OBC.FragmentsManager);
     const ifcLoader = components.get(OBC.IfcLoader);
     await ifcLoader.setup();
     ifcLoader.settings.webIfc.COORDINATE_TO_ORIGIN = true;
+    const fragments = components.get(OBC.FragmentsManager);
     const indexer = components.get(OBC.IfcRelationsIndexer);
+    // const fragmentsManager = components.get(OBC.FragmentsManager);
 
-    const loadModel = async (modelContents) => {
-      // TODO: remove previous model
+    const loadModel = async () => {
+      const modelContents = model.get("ifc_model").contents;
       fragments.dispose();
       const ifcModel = await ifcLoader.load(
         new TextEncoder().encode(modelContents),
@@ -44,15 +46,17 @@ export default {
       await indexer.process(ifcModel);
     };
 
-    await loadModel(model.get("ifc_model").contents);
-
     model.on("change:ifc_model", async () => {
-      await loadModel(model.get("ifc_model").contents);
+      await loadModel();
       model.set("selected_guids", null);
       model.save_changes();
     });
 
-    // use entityAttributes for more complete table
+    const highlighter = components.get(OBCF.Highlighter);
+    highlighter.setup({ world });
+    highlighter.zoomToSelection = true;
+
+    // region Properties table
     const [propertiesTable, updatePropertiesTable] =
       BUIC.tables.elementProperties({
         components,
@@ -61,9 +65,6 @@ export default {
 
     propertiesTable.preserveStructureOnFilter = true;
     propertiesTable.indentationInText = false;
-
-    const highlighter = components.get(OBCF.Highlighter);
-    highlighter.setup({ world });
 
     highlighter.events.select.onHighlight.add((fragmentIdMap) => {
       updatePropertiesTable({ fragmentIdMap });
@@ -78,7 +79,7 @@ export default {
       model.save_changes();
     });
 
-    const propertiesPanel = BUI.Component.create(() => {
+    const propertiesSection = BUI.Component.create(() => {
       const onTextInput = (e) => {
         const input = e.target; // type BUI.TextInput;
         propertiesTable.queryString = input.value !== "" ? input.value : null;
@@ -95,15 +96,45 @@ export default {
       };
 
       return BUI.html`
-        <bim-panel label="Properties">
-          <bim-panel-section label="Element Data">
-            <div style="display: flex; gap: 0.5rem;">
-              <bim-button @click=${expandTable} label=${propertiesTable.expanded ? "Collapse" : "Expand"}></bim-button>
-              <bim-button @click=${copyAsTSV} label="Copy as TSV"></bim-button>
-            </div>
-            <bim-text-input @input=${onTextInput} placeholder="Search Property" debounce="250"></bim-text-input>
-            ${propertiesTable}
-          </bim-panel-section>
+        <bim-panel-section label="Element Data">
+          <div style="display: flex; gap: 0.5rem;">
+            <bim-button @click=${expandTable} label=${propertiesTable.expanded ? "Collapse" : "Expand"}></bim-button>
+            <bim-button @click=${copyAsTSV} label="Copy as TSV"></bim-button>
+          </div>
+          <bim-text-input @input=${onTextInput} placeholder="Search Property" debounce="250"></bim-text-input>
+          ${propertiesTable}
+        </bim-panel-section>
+      `;
+    });
+    // endregion
+
+    // region relations tree
+    /** @type {BUI.Tree} */
+    const [relationsTree] = BUIC.tables.relationsTree({
+      components,
+      models: [],
+    });
+    relationsTree.preserveStructureOnFilter = true;
+
+    const relationsTreeSection = BUI.Component.create(() => {
+      const onSearch = (e) => {
+        const input = e.target;
+        relationsTree.queryString = input.value;
+      };
+      return BUI.html`
+        <bim-panel-section label="Model Tree">
+          <bim-text-input @input=${onSearch} placeholder="Search..." debounce="200"></bim-text-input>
+          ${relationsTree}
+        </bim-panel-section>
+      `;
+    });
+    // endregion
+
+    const panel = BUI.Component.create(() =>{
+      return BUI.html`
+        <bim-panel label="Tools">
+          ${relationsTreeSection}
+          ${propertiesSection}
         </bim-panel>
       `;
     });
@@ -112,15 +143,17 @@ export default {
     widget.layouts = {
       main: {
         template: `
-        "propertiesPanel viewport"
+        "panel viewport"
         /20rem 1fr
         `,
-        elements: { propertiesPanel, viewport },
+        elements: { panel, viewport },
       },
     };
 
     widget.layout = "main";
     el.classList.add("bim-viewer");
     el.appendChild(widget);
+
+    await loadModel();
   },
 };

@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+# IDE configs
+.idea
+.vscode
+
+# Notebooks files
+.ipynb_checkpoints
