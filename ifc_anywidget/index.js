@@ -1,7 +1,52 @@
-import * as BUI from "https://esm.sh/@thatopen/ui";
-import * as OBC from "https://esm.sh/@thatopen/components";
-import * as OBCF from "https://esm.sh/@thatopen/components-front";
-import * as BUIC from "https://esm.sh/@thatopen/ui-obc";
+import * as OBC from "https://esm.sh/@thatopen/components@3.1.3";
+import * as OBCF from "https://esm.sh/@thatopen/components-front@3.1.7";
+import * as BUI from "https://esm.sh/@thatopen/ui@3.1.1";
+import * as BUIC from "https://esm.sh/@thatopen/ui-obc@3.1.3";
+
+
+async function initFragments(components) {
+  const fragments = components.get(OBC.FragmentsManager);
+  const githubUrl = "https://thatopen.github.io/engine_fragment/resources/worker.mjs";
+  const fetchedUrl = await fetch(githubUrl);
+  const workerBlob = await fetchedUrl.blob();
+  const workerFile = new File([workerBlob], "worker.mjs", {
+    type: "text/javascript",
+  });
+  fragments.init(URL.createObjectURL(workerFile));
+  return fragments;
+}
+
+function setupWorld(components, viewport) {
+  const worlds = components.get(OBC.Worlds);
+  const world = worlds.create();
+  world.scene = new OBC.SimpleScene(components);
+  world.scene.setup();
+  world.scene.three.background = null;
+  world.renderer = new OBC.SimpleRenderer(components, viewport);
+  world.camera = new OBC.SimpleCamera(components);
+  world.camera.controls.setLookAt(10, 5.5, 5, -4, -1, -6.5);
+  return world;
+}
+
+async function setupLoader(components) {
+  const ifcLoader = components.get(OBC.IfcLoader);
+  await ifcLoader.setup({
+    autoSetWasm: false,
+    wasm: {
+      path: "https://esm.sh/web-ifc@0.0.71/",
+      absolute: true,
+    },
+  });
+  ifcLoader.settings.webIfc.COORDINATE_TO_ORIGIN = true;
+  return ifcLoader;
+}
+
+function setupHighlighter(components, world) {
+  const highlighter = components.get(OBCF.Highlighter);
+  highlighter.setup({world});
+  highlighter.zoomToSelection = true;
+  return highlighter;
+}
 
 export default {
   initialize() {
@@ -9,41 +54,39 @@ export default {
   },
 
   async render({ model, el }) {
-    const viewport = document.createElement("bim-viewport");
     const components = new OBC.Components();
-    const worlds = components.get(OBC.Worlds);
-    const world = worlds.create();
-    world.scene = new OBC.SimpleScene(components);
-    world.scene.setup();
-    world.scene.three.background = null;
-    world.renderer = new OBC.SimpleRenderer(components, viewport);
-    world.camera = new OBC.SimpleCamera(components);
-    world.camera.controls.setLookAt(10, 5.5, 5, -4, -1, -6.5);
+
+    const fragments = await initFragments(components);
+
+    const viewport = document.createElement("bim-viewport");
+    const world = setupWorld(components, viewport);
+    const ifcLoader = await setupLoader(components);
+
+    world.camera.controls.addEventListener("rest", () =>
+      fragments.core.update(true),
+    );
+    fragments.list.onItemSet.add(({ value: addedModel }) => {
+      addedModel.useCamera(world.camera.three);
+      world.scene.three.add(addedModel.object);
+      fragments.core.update(true);
+    });
 
     viewport.addEventListener("resize", () => {
       world.renderer.resize();
       world.camera.updateAspect();
     });
+
     components.init();
-
-    const grids = components.get(OBC.Grids);
-    grids.create(world);
-
-    const ifcLoader = components.get(OBC.IfcLoader);
-    await ifcLoader.setup();
-    ifcLoader.settings.webIfc.COORDINATE_TO_ORIGIN = true;
-    const fragments = components.get(OBC.FragmentsManager);
-    const indexer = components.get(OBC.IfcRelationsIndexer);
-    // const fragmentsManager = components.get(OBC.FragmentsManager);
+    components.get(OBC.Grids).create(world);
+    const highlighter = setupHighlighter(components, world);
 
     const loadModel = async () => {
       const modelContents = model.get("ifc_model").contents;
-      fragments.dispose();
-      const ifcModel = await ifcLoader.load(
+      await ifcLoader.load(
         new TextEncoder().encode(modelContents),
+        true,
+        "IfcModel",
       );
-      world.scene.three.add(ifcModel);
-      await indexer.process(ifcModel);
     };
 
     model.on("change:ifc_model", async () => {
@@ -52,29 +95,26 @@ export default {
       model.save_changes();
     });
 
-    const highlighter = components.get(OBCF.Highlighter);
-    highlighter.setup({ world });
-    highlighter.zoomToSelection = true;
 
     // region Properties table
     const [propertiesTable, updatePropertiesTable] =
-      BUIC.tables.elementProperties({
+      BUIC.tables.itemsData({
         components,
-        fragmentIdMap: {},
+        modelIdMap: {},
       });
 
     propertiesTable.preserveStructureOnFilter = true;
     propertiesTable.indentationInText = false;
 
-    highlighter.events.select.onHighlight.add((fragmentIdMap) => {
-      updatePropertiesTable({ fragmentIdMap });
-      const guids = fragments.fragmentIdMapToGuids(fragmentIdMap);
+    highlighter.events.select.onHighlight.add(async (modelIdMap) => {
+      updatePropertiesTable({ modelIdMap });
+      const guids = await fragments.modelIdMapToGuids(modelIdMap);
       model.set("selected_guids", guids);
       model.save_changes();
     });
 
     highlighter.events.select.onClear.add(() => {
-      updatePropertiesTable({ fragmentIdMap: {} });
+      updatePropertiesTable({ modelIdMap: {} });
       model.set("selected_guids", null);
       model.save_changes();
     });
@@ -91,15 +131,10 @@ export default {
         button.label = propertiesTable.expanded ? "Collapse" : "Expand";
       };
 
-      const copyAsTSV = async () => {
-        await navigator.clipboard.writeText(propertiesTable.tsv);
-      };
-
       return BUI.html`
         <bim-panel-section label="Element Data">
           <div style="display: flex; gap: 0.5rem;">
             <bim-button @click=${expandTable} label=${propertiesTable.expanded ? "Collapse" : "Expand"}></bim-button>
-            <bim-button @click=${copyAsTSV} label="Copy as TSV"></bim-button>
           </div>
           <bim-text-input @input=${onTextInput} placeholder="Search Property" debounce="250"></bim-text-input>
           ${propertiesTable}
@@ -110,27 +145,27 @@ export default {
 
     // region relations tree
     /** @type {BUI.Tree} */
-    const [relationsTree] = BUIC.tables.relationsTree({
+    const [spatialTree] = BUIC.tables.spatialTree({
       components,
       models: [],
     });
-    relationsTree.preserveStructureOnFilter = true;
+    spatialTree.preserveStructureOnFilter = true;
 
     const relationsTreeSection = BUI.Component.create(() => {
       const onSearch = (e) => {
         const input = e.target;
-        relationsTree.queryString = input.value;
+        spatialTree.queryString = input.value;
       };
       return BUI.html`
         <bim-panel-section label="Model Tree">
           <bim-text-input @input=${onSearch} placeholder="Search..." debounce="200"></bim-text-input>
-          ${relationsTree}
+          ${spatialTree}
         </bim-panel-section>
       `;
     });
     // endregion
 
-    const panel = BUI.Component.create(() =>{
+    const panel = BUI.Component.create(() => {
       return BUI.html`
         <bim-panel label="Tools">
           ${relationsTreeSection}
@@ -149,7 +184,6 @@ export default {
         elements: { panel, viewport },
       },
     };
-
     widget.layout = "main";
     el.classList.add("bim-viewer");
     el.appendChild(widget);

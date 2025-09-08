@@ -9,9 +9,7 @@ __version__ = "0.1.0"
 
 
 def ifc_to_json(ifc_model: ifcopenshell.file, widget: anywidget.AnyWidget):
-    return {
-        "contents": ifc_model.to_string(),
-    }
+    return {"contents": ifc_model.to_string()}
 
 
 class IfcViewer(anywidget.AnyWidget):
