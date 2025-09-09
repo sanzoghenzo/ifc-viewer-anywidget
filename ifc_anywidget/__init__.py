@@ -8,11 +8,13 @@ import ifcopenshell
 __version__ = "0.1.0"
 
 
-def ifc_to_json(ifc_model: ifcopenshell.file, widget: anywidget.AnyWidget):
+def ifc_to_json(ifc_model: ifcopenshell.file, _widget: anywidget.AnyWidget):
+    """Serialize an IFC model to string and pass it as JSON to the frontend."""
     return {"contents": ifc_model.to_string()}
 
 
 class IfcViewer(anywidget.AnyWidget):
+    """IFC viewer widget."""
     _esm = Path(__file__).with_name("index.js")
     _css = Path(__file__).with_name("index.css")
     ifc_model = traitlets.Instance(ifcopenshell.file).tag(sync=True, to_json=ifc_to_json)

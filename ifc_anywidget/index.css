@@ -1,4 +1,25 @@
 .bim-viewer {
-    /* TODO: adapt to the maximum allowed size (ie. marimo enlarged widget) */
-    height: 578px;
+  height: 100%;
+  min-height: 578px;
+  position: relative;
+}
+
+bim-grid {
+  position: relative;
+  height: 100%;
+}
+
+bim-panel {
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: scroll;
+}
+
+bim-viewport {
+  height: 100%;
+  min-height: 578px;
 }
