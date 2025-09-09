@@ -205,12 +205,25 @@ export default () =>{
       el.classList.add("bim-viewer");
       el.appendChild(widget);
 
-      const resizeObserver = new ResizeObserver((entries) => {
-        console.log(entries);
+      const applyExplicitHeightIfFullscreen = () => {
+        const isFullscreen = !!document.fullscreenElement;
+        if (isFullscreen) {
+          const h = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 0;
+          // marimo fullscreen mode has a 1rem padding, this avoids scrollbars
+          if (h) el.style.height = h - 32 + "px";
+        } else {
+          // TODO: how to retrieve the max height of the marimo/Jupyter cell?
+          el.style.height = "578px";
+        }
+      };
+
+      const resizeObserver = new ResizeObserver(() => {
+        applyExplicitHeightIfFullscreen();
         world.renderer.resize();
         world.camera.updateAspect();
       });
       resizeObserver.observe(el);
+      applyExplicitHeightIfFullscreen();
 
       await loadModel();
     },
