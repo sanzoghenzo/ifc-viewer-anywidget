@@ -5,7 +5,7 @@ import traitlets
 import ifcopenshell
 
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 
 def ifc_to_json(ifc_model: ifcopenshell.file, _widget: anywidget.AnyWidget):
