@@ -1,12 +1,11 @@
+from importlib.metadata import version
 from pathlib import Path
 
 import anywidget
-import traitlets
 import ifcopenshell
+import traitlets
 
-
-__version__ = "0.3.0"
-
+__version__ = version("ifc-anywidget")
 
 def ifc_to_json(ifc_model: ifcopenshell.file, _widget: anywidget.AnyWidget):
     """Serialize an IFC model to string and pass it as JSON to the frontend."""
@@ -15,7 +14,11 @@ def ifc_to_json(ifc_model: ifcopenshell.file, _widget: anywidget.AnyWidget):
 
 class IfcViewer(anywidget.AnyWidget):
     """IFC viewer widget."""
+
     _esm = Path(__file__).with_name("index.js")
-    _css = Path(__file__).with_name("index.css")
-    ifc_model = traitlets.Instance(ifcopenshell.file).tag(sync=True, to_json=ifc_to_json)
-    selected_guids = traitlets.List(trait=traitlets.Unicode(), allow_none=True).tag(sync=True)
+    ifc_model = traitlets.Instance(ifcopenshell.file).tag(
+        sync=True, to_json=ifc_to_json
+    )
+    selected_guids = traitlets.List(trait=traitlets.Unicode(), allow_none=True).tag(
+        sync=True
+    )
