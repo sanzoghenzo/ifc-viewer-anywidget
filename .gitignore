@@ -15,3 +15,4 @@ wheels/
 
 # Notebooks files
 .ipynb_checkpoints
+uv.lock
