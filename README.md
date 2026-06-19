@@ -33,9 +33,22 @@ from ifc_anywidget import IfcViewer
 import ifcopenshell
 
 model = ifcopenshell.open("my-awesome-model.ifc")
-viewer = IfcViewer(ifc_model=model)
+viewer = IfcViewer(ifc_model=model) # for marimo: wrap it with mo.ui.anywidget()
 viewer
 ```
+
+`IfcVewer` supports the following attributes:
+
+- `ifc_model`: the `ifcopenshell.file` instance to show
+- `hide_sites`: whether to hide IfcSite elements (default: False)
+- `hide_spaces`: whether to hide IfcSpace elements (default: True)
+- `hide_spatial_zones`: whether to hide IfcSpatialZone elements (default: True)
+- `hide_opening_elements`: whether to hide IfcOpeningElement elements (default: True)
+- `hide_annotations`: whether to hide IfcAnnotation elements (default: True)
+- `hide_grids`: whether to hide IfcGrid elements (default: True)
+
+Using marimo, you can set these attributes reactively (for instance, with a toggle widget).  
+Take a look at the `tests/test_marimo.py` notebook to see an example.
 
 ## development
 

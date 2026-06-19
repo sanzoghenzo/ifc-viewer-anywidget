@@ -11,6 +11,6 @@
     "enabled": true
   },
   "files": {
-    "includes": ["ifc_anywidget/*.js"]
+    "includes": ["src/ifc_anywidget/*.js"]
   }
 }

@@ -96,6 +96,8 @@ const computeHeight = () => {
     return 578;
 };
 
+const elements_handled_by_visibility = ['site', 'space', 'spatial_zone', 'opening_element', 'annotation', 'grid'];
+
 export default () => {
     /** @type {HTMLCanvasElement} */
     let canvas;
@@ -105,12 +107,24 @@ export default () => {
     let geometry;
     /** @type {IfcParser} */
     let parser;
+    /** @type {IfcDataStore} */
     let store;
     /** @type {Set<number>} */
     const selectedIds = new Set();
+    /** @type {Set<number>} */
+    let hiddenIds = new Set();
+
+    const visibilityIds = {
+        site: new Set(),
+        space: new Set(),
+        spatial_zone: new Set(),
+        opening_element: new Set(),
+        annotation: new Set(),
+        grid: new Set(),
+    };
 
     function refresh() {
-        renderer.render({ selectedIds });
+        renderer.render({ selectedIds, hiddenIds });
     }
 
     return {
@@ -120,32 +134,49 @@ export default () => {
             canvas.style.alignContent = "center";
             renderer = new Renderer(canvas);
             await renderer.init();
-            setupCameraControls(canvas, renderer, refresh);
             geometry = new GeometryProcessor();
             await geometry.init();
             parser = new IfcParser();
+            setupCameraControls(canvas, renderer, refresh);
         },
 
         async render({ model, el }) {
             const loadModel = async () => {
                 const modelContents = model.get("ifc_model").contents;
                 const bufferArray = new TextEncoder().encode(modelContents);
-                store = await parser.parseColumnar(bufferArray, {
-                    onProgress: ({ phase, percent }) => {
-                        console.log(`Parsing: ${phase} ${percent}%`);
-                    },
-                });
+                store = await parser.parseColumnar(bufferArray);
                 const geometryResult = await geometry.process(bufferArray);
                 renderer.loadGeometry(geometryResult);
                 renderer.fitToView();
+                for (const type of elements_handled_by_visibility) {
+                    const strType = `IFC${type.toUpperCase().replaceAll("_", "")}`;
+                    visibilityIds[type] = new Set(store.entityIndex.byType.get(strType) ?? [])
+                }
+                hideElements();
                 refresh();
             };
+
+            const hideElements = () => {
+                hiddenIds = new Set();
+                for (const type of elements_handled_by_visibility) {
+                    if (model.get(`hide_${type}s`)) {
+                        hiddenIds = hiddenIds.union(visibilityIds[type]);
+                    }
+                }
+            }
 
             model.on("change:ifc_model", async () => {
                 await loadModel();
                 model.set("selected_guids", null);
                 model.save_changes();
             });
+
+            for (const trait of elements_handled_by_visibility) {
+                model.on(`change:hide_${trait}s`, () => {
+                    hideElements();
+                    refresh();
+                });
+            }
 
             canvas.addEventListener("click", async (e) => {
                 const rect = canvas.getBoundingClientRect();

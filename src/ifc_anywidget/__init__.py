@@ -22,3 +22,9 @@ class IfcViewer(anywidget.AnyWidget):
     selected_guids = traitlets.List(trait=traitlets.Unicode(), allow_none=True).tag(
         sync=True
     )
+    hide_sites = traitlets.Bool(False).tag(sync=True)
+    hide_spaces = traitlets.Bool(True).tag(sync=True)
+    hide_spatial_zones = traitlets.Bool(True).tag(sync=True)
+    hide_opening_elements = traitlets.Bool(True).tag(sync=True)
+    hide_annotations = traitlets.Bool(True).tag(sync=True)
+    hide_grids = traitlets.Bool(True).tag(sync=True)
